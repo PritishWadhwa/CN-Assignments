@@ -39,19 +39,36 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <ctype.h>
+
+int digits_only(const char *s)
+{
+    while (*s)
+    {
+        if (isdigit(*s++) == 0)
+            return 0;
+    }
+    return 1;
+}
 
 int main()
 {
     DIR *d;
     struct dirent *dir;
-    d = opendir("./");
+    int c = 0;
+    d = opendir("/proc/");
     if (d)
     {
         while ((dir = readdir(d)) != NULL)
         {
-            printf("%s\n", dir->d_name);
+            if (digits_only(dir->d_name) == 1)
+            {
+                printf("%s\n", dir->d_name);
+                c++;
+            }
         }
         closedir(d);
     }
+    printf("%d", c);
     return (0);
 }
