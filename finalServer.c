@@ -10,6 +10,9 @@
 #include <ctype.h>
 #include <fcntl.h>
 
+int fileCtr = 0;
+// char *itoa(int, char *, int);
+
 typedef struct
 {
     pid_t pid;
@@ -158,6 +161,97 @@ void *getAndSendData(void *ptr)
     // sorting in decreasing cpu time
     qsort(arr, size, sizeof(processes), comparator);
 
+    // creating a file with the top n processes
+    FILE *fp;
+
+    char topNFileName[4096] = "top_";
+    char underscore[2] = "_";
+    char number[10];
+    char currFileCtr[10];
+    char extension[5] = ".txt";
+    // itoa(n, number, 10);
+    // itoa(fileCtr, currFileCtr, 10);
+    sprintf(number, "%d", n);
+    sprintf(currFileCtr, "%d", fileCtr);
+    strcat(topNFileName, number);
+    strcat(topNFileName, underscore);
+    strcat(topNFileName, currFileCtr);
+    strcat(topNFileName, extension);
+    fileCtr++;
+    fp = fopen(topNFileName, "w");
+    for (int ct = 0; ct < n; ct++)
+    {
+        fprintf(fp, "%s %d %llu\n", arr[ct].name, arr[ct].pid, arr[ct].mem);
+    }
+    fclose(fp);
+
+    // Sending the file to the client
+    char buffer[4096] = {0};
+    // Sending the filename
+    strncpy(buffer, topNFileName, strlen(topNFileName));
+    if (send(conn->sockid, buffer, strlen(buffer), 0) < 0)
+    {
+        perror("error in sending filename");
+        exit(1);
+    }
+    printf("%s\n", buffer);
+    sleep(1);
+    // sending contents of the file
+    FILE *filePtr = fopen(topNFileName, "rb");
+    int temp;
+    char sendLines[4096] = {0};
+    while ((temp = fread(sendLines, sizeof(char), 4096, filePtr)) > 0)
+    {
+        if (temp != 4096 && ferror(filePtr))
+        {
+            perror("error in reading file");
+            exit(1);
+        }
+        if (send(conn->sockid, sendLines, temp, 0) < 0)
+        {
+            perror("error in sending file");
+            exit(1);
+        }
+        memset(sendLines, 0, 4096);
+    }
+    fclose(filePtr);
+
+    // Recieve file with top id from client
+    // get the filename
+    char tempfilename[4096] = {0};
+    if (recv(conn->sockid, tempfilename, sizeof(tempfilename), 0) <= 0)
+    {
+        perror("Error: File name not received");
+        exit(1);
+    }
+    // printf("%s\n", tempfilename);
+    char topFileName[4200] = "./recieved_from_client/";
+    strcat(topFileName, tempfilename);
+    FILE *newfp = fopen(topFileName, "wb");
+    if (newfp == NULL)
+    {
+        perror("Error: File not opened");
+        exit(1);
+    }
+
+    // get the file data
+    char finalbuffer[4096] = {0};
+    while ((temp = recv(conn->sockid, finalbuffer, sizeof(finalbuffer), 0)) > 0)
+    {
+        if (n == -1)
+        {
+            perror("Error: File not received");
+            exit(1);
+        }
+        if (fwrite(finalbuffer, sizeof(char), temp, newfp) != temp)
+        {
+            perror("Error: File Write Error");
+            exit(1);
+        }
+        memset(finalbuffer, 0, sizeof(finalbuffer));
+    }
+    fclose(newfp);
+
     close(conn->sockid);
     free(conn);
     pthread_exit(0);
@@ -194,7 +288,7 @@ int main(int argc, char *argv[])
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddress.sin_port = htons(port);
 
-    if (bind(sockid, (const struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
+    if (bind(sockid, (const struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
     {
         fprintf(stderr, "Binding failed\n");
         exit(1);
