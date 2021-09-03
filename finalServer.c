@@ -199,25 +199,33 @@ void *getAndSendData(void *ptr)
     // sending contents of the file
     FILE *filePtr = fopen(topNFileName, "rb");
     int temp;
-    char sendLines[4096] = {0};
-    while ((temp = fread(sendLines, sizeof(char), 4096, filePtr)) > 0)
+    char sendLines[512] = {0};
+    while ((temp = fread(sendLines, sizeof(char), 512, filePtr)) > 0)
     {
-        if (temp != 4096 && ferror(filePtr))
+        printf("sending\n");
+        printf("%s", sendLines);
+        printf("sending\n");
+        if (temp != 512 && ferror(filePtr))
         {
             perror("error in reading file");
             exit(1);
         }
+        // sendLines[strlen(sendLines) - 1] = '\0';
         if (send(conn->sockid, sendLines, temp, 0) < 0)
         {
             perror("error in sending file");
             exit(1);
         }
-        memset(sendLines, 0, 4096);
+        printf("%s", sendLines);
+        // memset(sendLines, 0, 512);
+        printf("%s", sendLines);
     }
     fclose(filePtr);
-
+    printf("file sent");
     // Recieve file with top id from client
     // get the filename
+    // sleep(5);
+
     char tempfilename[4096] = {0};
     if (recv(conn->sockid, tempfilename, sizeof(tempfilename), 0) <= 0)
     {
@@ -225,32 +233,32 @@ void *getAndSendData(void *ptr)
         exit(1);
     }
     // printf("%s\n", tempfilename);
-    char topFileName[4200] = "./recieved_from_client/";
-    strcat(topFileName, tempfilename);
-    FILE *newfp = fopen(topFileName, "wb");
-    if (newfp == NULL)
-    {
-        perror("Error: File not opened");
-        exit(1);
-    }
+    // char topFileName[4200] = "./recieved_from_client/";
+    // strcat(topFileName, tempfilename);
+    // FILE *newfp = fopen(topFileName, "wb");
+    // if (newfp == NULL)
+    // {
+    //     perror("Error: File not opened");
+    //     exit(1);
+    // }
 
-    // get the file data
-    char finalbuffer[4096] = {0};
-    while ((temp = recv(conn->sockid, finalbuffer, sizeof(finalbuffer), 0)) > 0)
-    {
-        if (n == -1)
-        {
-            perror("Error: File not received");
-            exit(1);
-        }
-        if (fwrite(finalbuffer, sizeof(char), temp, newfp) != temp)
-        {
-            perror("Error: File Write Error");
-            exit(1);
-        }
-        memset(finalbuffer, 0, sizeof(finalbuffer));
-    }
-    fclose(newfp);
+    // // get the file data
+    // char finalbuffer[4096] = {0};
+    // while ((temp = recv(conn->sockid, finalbuffer, sizeof(finalbuffer), 0)) > 0)
+    // {
+    //     if (n == -1)
+    //     {
+    //         perror("Error: File not received");
+    //         exit(1);
+    //     }
+    //     if (fwrite(finalbuffer, sizeof(char), temp, newfp) != temp)
+    //     {
+    //         perror("Error: File Write Error");
+    //         exit(1);
+    //     }
+    //     memset(finalbuffer, 0, sizeof(finalbuffer));
+    // }
+    // fclose(newfp);
 
     close(conn->sockid);
     free(conn);
