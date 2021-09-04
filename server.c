@@ -1,201 +1,360 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <sys/socket.h>
-// #include <linux/in.h>
-#include <unistd.h>
-#include <netinet/in.h>
 #include <string.h>
-
+#include <unistd.h>
 #include <arpa/inet.h>
-
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <dirent.h>
+#include <ctype.h>
+#include <fcntl.h>
 
-#define MAX_LINE 4096
-#define LINSTENPORT 7788
-#define SERVERPORT 8877
-#define BUFFSIZE 4096
+// mutex to make sure that fileCtr is only used and incremented by one thread at a time
+pthread_mutex_t lock;
+int fileCtr = 0;
 
-ssize_t total = 0;
-
+// structure to define a process
 typedef struct
 {
-    int sock;
+    pid_t pid;
+    char name[256];
+    unsigned long long int mem;
+} processes;
+
+// structure to define a connection to a client
+typedef struct
+{
+    int sockid;
     struct sockaddr address;
-    int addr_len;
-} connection_t;
+    int addrlen;
+} connection;
 
-void writefile(int sockfd, FILE *fp)
+// comparator to compare the processes based on their memory usage
+int comparator(const void *p, const void *q)
 {
-    ssize_t n;
-    char buff[MAX_LINE] = {0};
-    while ((n = recv(sockfd, buff, MAX_LINE, 0)) > 0)
-    {
-        total += n;
-        if (n == -1)
-        {
-            perror("Receive File Error");
-            exit(1);
-        }
-
-        if (fwrite(buff, sizeof(char), n, fp) != n)
-        {
-            perror("Write File Error");
-            exit(1);
-        }
-        memset(buff, 0, MAX_LINE);
-    }
+    processes *a = (processes *)p;
+    processes *b = (processes *)q;
+    return (a->mem) < (b->mem);
 }
 
-void sendfile(FILE *fp, int sockfd)
+// function to check whether the file name consists of digits only or not
+int digits_only(const char *s)
 {
-    int n;
-    char sendline[MAX_LINE] = {0};
-    while ((n = fread(sendline, sizeof(char), MAX_LINE, fp)) > 0)
+    while (*s)
     {
-        total += n;
-        if (n != MAX_LINE && ferror(fp))
+        if (isdigit(*s++) == 0)
         {
-            perror("Read File Error");
-            exit(1);
+            return 0;
         }
-
-        if (send(sockfd, sendline, n, 0) == -1)
-        {
-            perror("Can't send file");
-            exit(1);
-        }
-        memset(sendline, 0, MAX_LINE);
     }
+    return 1;
 }
 
-void *process(void *ptr)
+// function to get the process name, its pid and the memory usage
+processes readData(char *dir)
 {
-    char *buffer;
+    processes p;
+    char fileName[4096] = "/proc/";
+    strcat(fileName, dir);
+    char *statFile = "/stat";
+    strcat(fileName, statFile);
+    int fd = open(fileName, O_RDONLY);
+    char text[4096];
+    int n = read(fd, text, 4096);
+    text[n] = '\0';
+    int i = 0;
+    unsigned long long int mem = 0;
+    char *token = strtok(text, " ");
+    while (token != NULL)
+    {
+        if (i == 0)
+        {
+            p.pid = atoi(token);
+        }
+        if (i == 1)
+        {
+            strcpy(p.name, token);
+        }
+        if (i == 13)
+        {
+            mem = atoll(token);
+        }
+        if (i == 14)
+        {
+            mem += atoll(token);
+            p.mem = mem;
+            break;
+        }
+        token = strtok(NULL, " ");
+        i++;
+    }
+    close(fd);
+    return p;
+}
+
+// function being called by the thread
+void *getAndSendData(void *ptr)
+{
+    connection *conn;
     int len;
-    connection_t *conn;
-    long addr = 0;
-
+    char *buff;
+    long address = 0;
+    int n;
+    // it proper arguments are not passed
     if (!ptr)
+    {
+        fprintf(stderr, "Error: No arguments passed\n");
         pthread_exit(0);
-    conn = (connection_t *)ptr;
+    }
+    conn = (connection *)ptr;
 
-    // Part added
-    char filename[BUFFSIZE] = {0};
-    if (recv(conn->sock, filename, BUFFSIZE, 0) == -1)
+    // Read the value of n from the client
+    // get length of text
+    read(conn->sockid, &len, sizeof(int));
+    if (len > 0)
     {
-        perror("Can't receive filename");
+        address = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
+        buff = (char *)malloc((len + 1) * sizeof(char));
+        buff[len] = 0;
+
+        // read the text
+        read(conn->sockid, buff, len);
+        n = atoi(buff);
+
+        free(buff);
+    }
+    printf("connected to IP: %d.%d.%d.%d on Port %d\n",
+           (int)((address)&0xff),
+           (int)((address >> 8) & 0xff),
+           (int)((address >> 16) & 0xff),
+           (int)((address >> 24) & 0xff),
+           ((struct sockaddr_in *)&conn->address)->sin_port);
+
+    // Get the top n pid's
+    DIR *d;
+    struct dirent *dir;
+    d = opendir("/proc/");
+    int size = 0;
+
+    // get number of active processes
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL)
+        {
+            if (digits_only(dir->d_name) == 1)
+            {
+                size++;
+            }
+        }
+        closedir(d);
+    }
+
+    // making sure that n is in the range
+    if (n > size)
+    {
+        printf("value of n: %d more than the number of processes. Sending data of all %d processes\n", n, size);
+        n = size;
+    }
+
+    if (n <= 0)
+    {
+        printf("value of n: %d less than or equal to 0. Sending data of top process\n", n);
+        n = 1;
+    }
+
+    // getting data of each process
+    d = opendir("/proc/");
+    int i = 0;
+    processes *arr = (processes *)malloc(size * sizeof(processes));
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL)
+        {
+            if (digits_only(dir->d_name) == 1)
+            {
+                arr[i] = readData(dir->d_name);
+                i++;
+            }
+        }
+        closedir(d);
+    }
+
+    // sorting in decreasing cpu time
+    qsort(arr, size, sizeof(processes), comparator);
+
+    // creating a file with the top n processes
+    FILE *fp;
+
+    char topNFileName[4096] = "top_";
+    char underscore[2] = "_";
+    char number[10];
+    char currFileCtr[10];
+    char extension[5] = ".txt";
+
+    sprintf(number, "%d", n);
+
+    // making sure that the fileCtr is not being used by another thread
+    pthread_mutex_lock(&lock);
+    sprintf(currFileCtr, "%d", fileCtr);
+    fileCtr++;
+    pthread_mutex_unlock(&lock);
+
+    strcat(topNFileName, number);
+    strcat(topNFileName, underscore);
+    strcat(topNFileName, currFileCtr);
+    strcat(topNFileName, extension);
+
+    fp = fopen(topNFileName, "w");
+    for (int ct = 0; ct < n; ct++)
+    {
+        fprintf(fp, "%s %d %llu\n", arr[ct].name, arr[ct].pid, arr[ct].mem);
+    }
+    fclose(fp);
+
+    // Sending the file to the client
+    char buffer[4096] = {0};
+
+    // Sending the filename
+    strncpy(buffer, topNFileName, strlen(topNFileName));
+    if (send(conn->sockid, buffer, strlen(buffer), 0) < 0)
+    {
+        fprintf(stderr, "Error: Sending file name failed\n");
+        exit(1);
+    }
+    printf("Sending file %s to IP: %d.%d.%d.%d\n",
+           topNFileName,
+           (int)((address)&0xff),
+           (int)((address >> 8) & 0xff),
+           (int)((address >> 16) & 0xff),
+           (int)((address >> 24) & 0xff));
+    sleep(1);
+
+    // sending contents of the file
+    long fileSize;
+    FILE *filePtr = fopen(topNFileName, "rb");
+
+    fseek(filePtr, 0L, SEEK_END);
+    fileSize = (ftell(filePtr));
+    rewind(filePtr);
+    buff = calloc(1, fileSize + 1);
+
+    if (1 != fread(buffer, fileSize, 1, filePtr))
+    {
+        fclose(filePtr);
+        fprintf(stderr, "Error: Reading file failed\n");
         exit(1);
     }
 
-    FILE *fp = fopen(filename, "wb");
-    if (fp == NULL)
+    write(conn->sockid, &fileSize, sizeof(long));
+    write(conn->sockid, buffer, fileSize);
+    fclose(filePtr);
+
+    printf("File %s sent to IP: %d.%d.%d.%d\n",
+           topNFileName,
+           (int)((address)&0xff),
+           (int)((address >> 8) & 0xff),
+           (int)((address >> 16) & 0xff),
+           (int)((address >> 24) & 0xff));
+
+    // getting the data from the client about it's top memory consuming process
+    // getting the length of the data
+    read(conn->sockid, &len, sizeof(int));
+    if (len > 0)
     {
-        perror("Can't open file");
-        exit(1);
+        address = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
+        buff = (char *)malloc((len + 1) * sizeof(char));
+        buff[len] = 0;
+
+        // read the text
+        read(conn->sockid, buff, len);
     }
+    printf("Top memory usage of the process from IP: %d.%d.%d.%d is:\n%s(name, pid and memory consumption respectively)\n",
+           (int)((address)&0xff),
+           (int)((address >> 8) & 0xff),
+           (int)((address >> 16) & 0xff),
+           (int)((address >> 24) & 0xff),
+           buff);
 
-    char address[INET_ADDRSTRLEN];
-    printf("Start receive file: %s from %s\n", filename,
-           inet_ntop(AF_INET,
-                     ((struct sockaddr_in *)&conn->address)->sin_addr.s_addr,
-                     address, INET_ADDRSTRLEN));
-    writefile(conn->sock, fp);
-    printf("Receive Success, NumBytes = %ld\n", total);
-
-    // /* read length of message */
-    // read(conn->sock, &len, sizeof(int));
-    // if (len > 0)
-    // {
-    //     addr = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
-    //     buffer = (char *)malloc((len + 1) * sizeof(char));
-    //     buffer[len] = 0;
-
-    //     /* read message */
-    //     read(conn->sock, buffer, len);
-
-    //     /* print message */
-    //     printf("%d.%d.%d.%d: %s\n",
-    //            (int)((addr)&0xff),
-    //            (int)((addr >> 8) & 0xff),
-    //            (int)((addr >> 16) & 0xff),
-    //            (int)((addr >> 24) & 0xff),
-    //            buffer);
-    //     free(buffer);
-    // }
-
-    /* close socket and clean up */
-    close(conn->sock);
+    free(buff);
+    close(conn->sockid);
     free(conn);
     pthread_exit(0);
+    printf("\n");
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-    int sock = -1;
-    struct sockaddr_in address;
-    // Temporary Port added
-    int port = 8877;
-    connection_t *connection;
-    pthread_t thread;
+    // initializing the mutex
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        fprintf(stderr, "mutex init failed\n");
+        exit(1);
+    }
 
-    /* check for command line arguments */
+    // getting data from the command line arguments
+    int port;
+    pthread_t thread;
+    // Obtaining Port Number
     if (argc != 2)
     {
-        fprintf(stderr, "usage: %s port\n", argv[0]);
-        return -1;
+        fprintf(stderr, "Port not provided\n");
+        exit(1);
     }
-
-    /* obtain port number */
     if (sscanf(argv[1], "%d", &port) <= 0)
     {
-        fprintf(stderr, "%s: error: wrong parameter: port\n", argv[0]);
-        return -2;
+        fprintf(stderr, "Invalid port\n");
+        exit(1);
     }
 
-    /* create socket */
-    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock <= 0)
+    // Creating Socket
+    int sockid = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sockid <= 0)
     {
-        fprintf(stderr, "%s: error: cannot create socket\n", argv[0]);
-        return -3;
+        fprintf(stderr, "Socket creation failed\n");
+        exit(1);
     }
 
-    /* bind socket to port */
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
-    if (bind(sock, (struct sockaddr *)&address, sizeof(struct sockaddr_in)) < 0)
+    // Binding Socket
+    struct sockaddr_in serverAddress;
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddress.sin_port = htons(port);
+
+    if (bind(sockid, (const struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
     {
-        fprintf(stderr, "%s: error: cannot bind socket to port %d\n", argv[0], port);
-        return -4;
+        fprintf(stderr, "Binding failed\n");
+        exit(1);
     }
 
-    /* listen on port */
-    if (listen(sock, 5) < 0)
+    // Listening for connections
+    if (listen(sockid, 10) < 0)
     {
-        fprintf(stderr, "%s: error: cannot listen on port\n", argv[0]);
-        return -5;
+        fprintf(stderr, "Listening failed\n");
+        exit(1);
     }
 
-    printf("%s: ready and listening\n", argv[0]);
+    printf("Server is listening on port %d and IP %s\n", port, inet_ntoa(serverAddress.sin_addr));
 
+    connection *client;
+
+    // running the server infinitely
     while (1)
     {
-        /* accept incoming connections */
-        connection = (connection_t *)malloc(sizeof(connection_t));
-        connection->sock = accept(sock, &connection->address, &connection->addr_len);
-        if (connection->sock <= 0)
+        // Accepting incoming connections
+        client = (connection *)malloc(sizeof(connection));
+        client->sockid = accept(sockid, &client->address, &client->addrlen);
+        if (client->sockid <= 0)
         {
-            free(connection);
+            free(client);
         }
         else
         {
-            /* start a new thread but do not wait for it */
-            pthread_create(&thread, 0, process, (void *)connection);
+            pthread_create(&thread, NULL, getAndSendData, (void *)client);
             pthread_detach(thread);
         }
     }
-
+    pthread_mutex_destroy(&lock);
     return 0;
 }
