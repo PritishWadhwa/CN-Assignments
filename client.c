@@ -10,6 +10,8 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 // structure to define a process
 typedef struct
@@ -82,7 +84,11 @@ int main(int argc, char *argv[])
     int port;
     struct hostent *host;
     int n;
-
+    struct stat newSt = {0};
+    if (stat("./recieved_from_server", &newSt) == -1)
+    {
+        mkdir("./recieved_from_server", 0700);
+    }
     struct sockaddr_in clientAddr;
 
     if (argc != 4)
