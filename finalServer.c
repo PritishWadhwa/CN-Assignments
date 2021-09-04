@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 
+pthread_mutex_t lock;
 int fileCtr = 0;
 // char *itoa(int, char *, int);
 
@@ -172,12 +173,14 @@ void *getAndSendData(void *ptr)
     // itoa(n, number, 10);
     // itoa(fileCtr, currFileCtr, 10);
     sprintf(number, "%d", n);
+    pthread_mutex_lock(&lock);
     sprintf(currFileCtr, "%d", fileCtr);
+    fileCtr++;
+    pthread_mutex_unlock(&lock);
     strcat(topNFileName, number);
     strcat(topNFileName, underscore);
     strcat(topNFileName, currFileCtr);
     strcat(topNFileName, extension);
-    fileCtr++;
     fp = fopen(topNFileName, "w");
     for (int ct = 0; ct < n; ct++)
     {
@@ -194,44 +197,103 @@ void *getAndSendData(void *ptr)
         perror("error in sending filename");
         exit(1);
     }
-    printf("%s\n", buffer);
+    printf("Sending file %s\n", topNFileName);
+    // printf("%s\n", buffer);
     sleep(1);
     // sending contents of the file
+    printf("Sending file contents\n");
+    long fileSize;
+    char *fileBuffer;
     FILE *filePtr = fopen(topNFileName, "rb");
-    int temp;
-    char sendLines[512] = {0};
-    while ((temp = fread(sendLines, sizeof(char), 512, filePtr)) > 0)
+
+    fseek(filePtr, 0L, SEEK_END);
+    fileSize = (ftell(filePtr));
+    rewind(filePtr);
+
+    fileBuffer = calloc(1, fileSize + 1);
+
+    if (1 != fread(buffer, fileSize, 1, filePtr))
     {
-        printf("sending\n");
-        printf("%s", sendLines);
-        printf("sending\n");
-        if (temp != 512 && ferror(filePtr))
-        {
-            perror("error in reading file");
-            exit(1);
-        }
-        // sendLines[strlen(sendLines) - 1] = '\0';
-        if (send(conn->sockid, sendLines, temp, 0) < 0)
-        {
-            perror("error in sending file");
-            exit(1);
-        }
-        printf("%s", sendLines);
-        // memset(sendLines, 0, 512);
-        printf("%s", sendLines);
+        fclose(filePtr);
+        // free(buffer);
+        fputs("entire read fails", stderr);
+        exit(1);
     }
+    printf("%s\n", buffer);
+    printf("%ld\n", fileSize);
+    // int len = strlen(argv[3]);
+    write(conn->sockid, &fileSize, sizeof(long));
+    write(conn->sockid, buffer, fileSize);
     fclose(filePtr);
-    printf("file sent");
+    printf("\n");
+    printf("file sent\n");
+    printf("File sent\n");
+    // int temp;
+    // char sendLines[4096] = {0};
+    // while ((temp = fread(sendLines, sizeof(char), 4096, filePtr)) > 0)
+    // {
+    //     // printf("sending\n");
+    //     // printf("%s", sendLines);
+    //     printf("sending\n");
+    //     if (temp != 4096 && ferror(filePtr))
+    //     {
+    //         perror("error in reading file");
+    //         exit(1);
+    //     }
+    //     // sendLines[strlen(sendLines) - 1] = '\0';
+    //     if (send(conn->sockid, sendLines, temp, 0) < 0)
+    //     {
+    //         perror("error in sending file");
+    //         exit(1);
+    //     }
+    //     // printf("%s", sendLines);
+    //     memset(sendLines, 0, 4096);
+    //     // printf("%s", sendLines);
+    // }
+    // fclose(filePtr);
+    printf("file sent\n");
+
+    read(conn->sockid, &len, sizeof(int));
+    printf("%d\n", len);
+    if (len > 0)
+    {
+        address = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
+        buff = (char *)malloc((len + 1) * sizeof(char));
+        buff[len] = 0;
+
+        // read the text
+        read(conn->sockid, buff, len);
+        // n = atoi(buff);
+
+        // free(buff);
+    }
+    printf("%s\n", buff);
+    // Read the top process from the client
+    // get len of text
+    // read(conn->sockid, &len, sizeof(int));
+    // if (len > 0)
+    // {
+    //     address = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
+    //     buff = (char *)malloc((len + 1) * sizeof(char));
+    //     buff[len] = 0;
+
+    //     // read the text
+    //     read(conn->sockid, buff, len);
+    //     // n = atoi(buff);
+    //     printf("%s", buff);
+    //     free(buff);
+    // }
+
     // Recieve file with top id from client
     // get the filename
     // sleep(5);
 
-    char tempfilename[4096] = {0};
-    if (recv(conn->sockid, tempfilename, sizeof(tempfilename), 0) <= 0)
-    {
-        perror("Error: File name not received");
-        exit(1);
-    }
+    // char tempfilename[4096] = {0};
+    // if (recv(conn->sockid, tempfilename, sizeof(tempfilename), 0) <= 0)
+    // {
+    //     perror("Error: File name not received");
+    //     exit(1);
+    // }
     // printf("%s\n", tempfilename);
     // char topFileName[4200] = "./recieved_from_client/";
     // strcat(topFileName, tempfilename);
@@ -263,10 +325,17 @@ void *getAndSendData(void *ptr)
     close(conn->sockid);
     free(conn);
     pthread_exit(0);
+    printf("\n");
 }
 
 int main(int argc, char *argv[])
 {
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        fprintf(stderr, "mutex init failed\n");
+        exit(1);
+    }
+
     int port;
     pthread_t thread;
     // Obtaining Port Number
@@ -328,6 +397,6 @@ int main(int argc, char *argv[])
             pthread_detach(thread);
         }
     }
-
+    pthread_mutex_destroy(&lock);
     return 0;
 }

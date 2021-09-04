@@ -146,36 +146,62 @@ int main(int argc, char *argv[])
     }
 
     // get the file data
-    int temp;
-    char buffer[512] = {0};
-    while ((temp = recv(sockId, buffer, sizeof(buffer), 0)) > 0)
+    long dataSize;
+    long address;
+    char *buff1;
+    read(sockId, &dataSize, sizeof(long));
+    printf("%ld\n", dataSize);
+    if (dataSize > 0)
     {
-        // printf("%s", buffer);
-        buffer[strlen(buffer) - 1] = '\n';
-        printf("%s", buffer);
-        printf("writing\n");
-        if (temp == -1)
-        {
-            perror("Error: File not received");
-            exit(1);
-        }
-        if (strlen(buffer) <= 0)
-        {
-            break;
-        }
-        if (fwrite(buffer, sizeof(char), temp, fp) != temp)
-        {
-            perror("Error: File Write Error");
-            exit(1);
-        }
-        printf("%s", buffer);
-        printf("%d", temp);
-        // memset(buffer, 0, sizeof(buffer));
-        printf("%d", temp);
+        // address = (long)((struct sockaddr_in *)&clientAddr)->sin_addr.s_addr;
+        // address = &clientAddr.sin_addr.s_addr;
+        // address = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
+        buff1 = (char *)malloc((dataSize + 1) * sizeof(char));
+        buff1[dataSize] = 0;
+
+        // read the text
+        read(sockId, buff1, dataSize);
+        // n = atoi(buff);
+        // printf("buff:\n%s\n", buff1);
+        // free(buff1);
     }
+    printf("%s\n", buff1);
+    fprintf(fp, "%s", buff1);
+    // if (fwrite(buff1, sizeof(char), temp, fp) != temp)
+    // {
+    //     perror("Error: File Write Error");
+    //     exit(1);
+    // }
+    // int temp;
+    // char buffer[4096] = {0};
+    // while ((temp = recv(sockId, buffer, sizeof(buffer), 0)) > 0)
+    // {
+    //     // printf("%s", buffer);
+    //     // buffer[strlen(buffer) - 1] = '\n';
+    //     // printf("%s", buffer);
+    //     printf("writing\n");
+    //     if (temp == -1)
+    //     {
+    //         perror("Error: File not received");
+    //         exit(1);
+    //     }
+    //     if (strlen(buffer) <= 0)
+    //     {
+    //         break;
+    //     }
+    //     if (fwrite(buffer, sizeof(char), temp, fp) != temp)
+    //     {
+    //         perror("Error: File Write Error");
+    //         exit(1);
+    //     }
+    //     // printf("%s", buffer);
+    //     // printf("%d", temp);
+    //     memset(buffer, 0, sizeof(buffer));
+    //     // printf("%d", temp);
+    // }
     fclose(fp);
     printf("written");
-    // sleep(5);
+    sleep(5);
     // get the top functioning process
     processes topProcess;
     unsigned long long int topMem = 0;
@@ -208,25 +234,35 @@ int main(int argc, char *argv[])
         closedir(d);
     }
 
-    // saving the top process in a file
-    FILE *interfp;
+    // sending the top process
+    char buff[4096] = {0};
+    sprintf(buff, "%s %d %llu\n", topProcess.name, topProcess.pid, topProcess.mem);
+    // strcat(buff, topProcess.name);
+    // strcat(buff, " ");
 
-    char topFileName[4096] = "top_process.txt";
-    interfp = fopen(topFileName, "w");
-    fprintf(interfp, "%s %d %llu\n", topProcess.name, topProcess.pid, topProcess.mem);
-    fclose(interfp);
+    len = strlen(buff);
+    write(sockId, &len, sizeof(int));
+    write(sockId, buff, len);
+    printf("%s", buff);
+    // // saving the top process in a file
+    // FILE *interfp;
+
+    // char topFileName[4096] = "top_process.txt";
+    // interfp = fopen(topFileName, "w");
+    // fprintf(interfp, "%s %d %llu\n", topProcess.name, topProcess.pid, topProcess.mem);
+    // fclose(interfp);
 
     // sending the file with the top process to the server
-    char finalBuffer[4096] = {0};
-    // Sending the filename
-    strncpy(finalBuffer, topFileName, strlen(topFileName));
-    finalBuffer[strlen(finalBuffer) - 1] = '\0';
-    if (send(sockId, finalBuffer, strlen(finalBuffer), 0) < 0)
-    {
-        perror("error in sending filename");
-        exit(1);
-    }
-    printf("filename %s sent", finalBuffer);
+    // char finalBuffer[4096] = {0};
+    // // Sending the filename
+    // strncpy(finalBuffer, topFileName, strlen(topFileName));
+    // finalBuffer[strlen(finalBuffer) - 1] = '\0';
+    // if (send(sockId, finalBuffer, strlen(finalBuffer), 0) < 0)
+    // {
+    //     perror("error in sending filename");
+    //     exit(1);
+    // }
+    // printf("filename %s sent", finalBuffer);
     // sleep(1);
     // // sending contents of the file
     // FILE *filePtr = fopen(topFileName, "rb");
