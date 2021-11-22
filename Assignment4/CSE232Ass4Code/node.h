@@ -15,10 +15,10 @@ using namespace std;
 class RoutingEntry
 {
 public:
-  string dstip, nexthop;
-  string ip_interface;
-  int cost;
-  /* You will have to add a new variable say, share_cost. 
+    string dstip, nexthop;
+    string ip_interface;
+    int cost;
+    /* You will have to add a new variable say, share_cost. 
   'share_cost' holds the cost that has to be shared with the neighbor.
   This change will be required to complete Q.3. of the assignment. */
 };
@@ -31,21 +31,21 @@ public:
 class Comparator
 {
 public:
-  bool operator()(const RoutingEntry &R1, const RoutingEntry &R2)
-  {
-    if (R1.cost == R2.cost)
+    bool operator()(const RoutingEntry &R1, const RoutingEntry &R2)
     {
-      return R1.dstip.compare(R2.dstip) < 0;
+        if (R1.cost == R2.cost)
+        {
+            return R1.dstip.compare(R2.dstip) < 0;
+        }
+        else if (R1.cost > R2.cost)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
-    else if (R1.cost > R2.cost)
-    {
-      return false;
-    }
-    else
-    {
-      return true;
-    }
-  }
 };
 
 /*
@@ -53,7 +53,7 @@ public:
 */
 struct routingtbl
 {
-  vector<RoutingEntry> tbl;
+    vector<RoutingEntry> tbl;
 };
 
 /*
@@ -65,9 +65,9 @@ struct routingtbl
 class RouteMsg
 {
 public:
-  string from;              // I am sending this message, so it must be me i.e. if A is sending mesg to B then it is A's ip address
-  struct routingtbl *mytbl; // This is routing table of A
-  string recvip;            // B ip address that will receive this message
+    string from;              // I am sending this message, so it must be me i.e. if A is sending mesg to B then it is A's ip address
+    struct routingtbl *mytbl; // This is routing table of A
+    string recvip;            // B ip address that will receive this message
 };
 
 /*
@@ -80,26 +80,26 @@ public:
 class NetInterface
 {
 private:
-  string ip;
-  string connectedTo; //this node is connected to this ip
+    string ip;
+    string connectedTo; //this node is connected to this ip
 
 public:
-  string getip()
-  {
-    return this->ip;
-  }
-  string getConnectedIp()
-  {
-    return this->connectedTo;
-  }
-  void setip(string ip)
-  {
-    this->ip = ip;
-  }
-  void setConnectedip(string ip)
-  {
-    this->connectedTo = ip;
-  }
+    string getip()
+    {
+        return this->ip;
+    }
+    string getConnectedIp()
+    {
+        return this->connectedTo;
+    }
+    void setip(string ip)
+    {
+        this->ip = ip;
+    }
+    void setConnectedip(string ip)
+    {
+        this->connectedTo = ip;
+    }
 };
 
 /*
@@ -112,91 +112,91 @@ public:
 class Node
 {
 private:
-  string name;
-  vector<pair<NetInterface, Node *>> interfaces;
+    string name;
+    vector<pair<NetInterface, Node *>> interfaces;
 
 protected:
-  struct routingtbl mytbl;
-  virtual void recvMsg(RouteMsg *msg)
-  {
-    cout << "Base" << endl;
-  }
-  bool isMyInterface(string eth)
-  {
-    for (int i = 0; i < interfaces.size(); ++i)
+    struct routingtbl mytbl;
+    virtual void recvMsg(RouteMsg *msg)
     {
-      if (interfaces[i].first.getip() == eth)
-        return true;
+        cout << "Base" << endl;
     }
-    return false;
-  }
+    bool isMyInterface(string eth)
+    {
+        for (int i = 0; i < interfaces.size(); ++i)
+        {
+            if (interfaces[i].first.getip() == eth)
+                return true;
+        }
+        return false;
+    }
 
 public:
-  void setName(string name)
-  {
-    this->name = name;
-  }
-
-  void addInterface(string ip, string connip, Node *nextHop)
-  {
-    NetInterface eth;
-    eth.setip(ip);
-    eth.setConnectedip(connip);
-    interfaces.push_back({eth, nextHop});
-  }
-
-  void addTblEntry(string myip, int cost)
-  {
-    RoutingEntry entry;
-    entry.dstip = myip;
-    entry.nexthop = myip;
-    entry.ip_interface = myip;
-    entry.cost = cost;
-    mytbl.tbl.push_back(entry);
-  }
-
-  string getName()
-  {
-    return this->name;
-  }
-
-  struct routingtbl getTable()
-  {
-    return mytbl;
-  }
-
-  void printTable()
-  {
-    Comparator myobject;
-    sort(mytbl.tbl.begin(), mytbl.tbl.end(), myobject);
-    cout << this->getName() << ":" << endl;
-    for (int i = 0; i < mytbl.tbl.size(); ++i)
+    void setName(string name)
     {
-      cout << mytbl.tbl[i].dstip << " | " << mytbl.tbl[i].nexthop << " | " << mytbl.tbl[i].ip_interface << " | " << mytbl.tbl[i].cost << endl;
-    }
-  }
-
-  void sendMsg()
-  {
-    struct routingtbl ntbl;
-    for (int i = 0; i < mytbl.tbl.size(); ++i)
-    {
-      ntbl.tbl.push_back(mytbl.tbl[i]);
+        this->name = name;
     }
 
-    for (int i = 0; i < interfaces.size(); ++i)
+    void addInterface(string ip, string connip, Node *nextHop)
     {
-      RouteMsg msg;
-      msg.from = interfaces[i].first.getip();
-      msg.mytbl = &ntbl;
-      msg.recvip = interfaces[i].first.getConnectedIp();
-      interfaces[i].second->recvMsg(&msg);
+        NetInterface eth;
+        eth.setip(ip);
+        eth.setConnectedip(connip);
+        interfaces.push_back({eth, nextHop});
     }
-  }
+
+    void addTblEntry(string myip, int cost)
+    {
+        RoutingEntry entry;
+        entry.dstip = myip;
+        entry.nexthop = myip;
+        entry.ip_interface = myip;
+        entry.cost = cost;
+        mytbl.tbl.push_back(entry);
+    }
+
+    string getName()
+    {
+        return this->name;
+    }
+
+    struct routingtbl getTable()
+    {
+        return mytbl;
+    }
+
+    void printTable()
+    {
+        Comparator myobject;
+        sort(mytbl.tbl.begin(), mytbl.tbl.end(), myobject);
+        cout << this->getName() << ":" << endl;
+        for (int i = 0; i < mytbl.tbl.size(); ++i)
+        {
+            cout << mytbl.tbl[i].dstip << " | " << mytbl.tbl[i].nexthop << " | " << mytbl.tbl[i].ip_interface << " | " << mytbl.tbl[i].cost << endl;
+        }
+    }
+
+    void sendMsg()
+    {
+        struct routingtbl ntbl;
+        for (int i = 0; i < mytbl.tbl.size(); ++i)
+        {
+            ntbl.tbl.push_back(mytbl.tbl[i]);
+        }
+
+        for (int i = 0; i < interfaces.size(); ++i)
+        {
+            RouteMsg msg;
+            msg.from = interfaces[i].first.getip();
+            msg.mytbl = &ntbl;
+            msg.recvip = interfaces[i].first.getConnectedIp();
+            interfaces[i].second->recvMsg(&msg);
+        }
+    }
 };
 
 class RoutingNode : public Node
 {
 public:
-  void recvMsg(RouteMsg *msg);
+    void recvMsg(RouteMsg *msg);
 };
