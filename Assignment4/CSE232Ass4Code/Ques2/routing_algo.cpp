@@ -51,9 +51,12 @@ void routingAlgo(vector<RoutingNode *> nd)
                 }
             }
         }
+        printRT(nd);
+        cout << endl;
     } while (tablesChanged);
     /*Print routing table entries after routing algo converges */
-    printRT(nd);
+    cout << "Routing table converged" << endl;
+    // printRT(nd);
 }
 
 void routingAlgo2(vector<RoutingNode *> nd)

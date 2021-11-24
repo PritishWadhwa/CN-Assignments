@@ -64,4 +64,93 @@ int main()
     /* The logic of the routing algorithm should go here */
     routingAlgo(distanceVectorNodes);
     /* Add the logic for periodic update (after every 1 sec) here */
+    cout << "\n\n\n\n\n\n\n\n\n\n\n";
+    for (int i = 0; i < distanceVectorNodes.size(); i++)
+    {
+        // if (distanceVectorNodes[i]->getName() == "B")
+        // {
+        //     auto table = distanceVectorNodes[i]->getTable().tbl;
+        //     for (auto i : table)
+        //     {
+        //         // cout << "pritish\n";
+        //         // cout << i.dstip << " " << i.nexthop << " " << i.cost << "\n";
+        //         // cout << i.first << " " << i.second << endl;
+        //         if (i.dstip == "10.0.1.3" && i.nexthop == "10.0.1.3")
+        //         {
+        //             cout << "yo1";
+        //             i.cost = 16;
+        //         }
+        //     }
+        // }
+        // if (distanceVectorNodes[i]->getName() == "C")
+        // {
+        //     auto table = distanceVectorNodes[i]->getTable().tbl;
+        //     for (auto i : table)
+        //     {
+        //         // cout << "pritish\n";
+        //         // cout << i.dstip << " " << i.nexthop << " " << i.cost << "\n";
+        //         // cout << i.first << " " << i.second << endl;
+        //         if (i.dstip == "10.0.1.23" && i.nexthop == "10.0.1.23")
+        //         {
+        //             cout << "yo2";
+        //             i.cost = 16;
+        //         }
+        //     }
+        // }
+        distanceVectorNodes[i]->updateBC();
+        distanceVectorNodes[i]->printTable();
+    }
+
+    cout << "\n\n\n\n\n\n\n\n\n\n\n";
+
+    // for (auto i : distanceVectorNodes)
+    // {
+    //     if (i->getName() == "B")
+    //     {
+    //         // cout << "yes";
+    //         auto table = i->getTable().tbl;
+    //         for (auto j : table)
+    //         {
+    //             if (j.nexthop == "10.0.1.3")
+    //             {
+    //                 cout << "yes1";
+    //                 j.cost = 16;
+    //             }
+    //             //     cout << j.first << " " << j.second << endl;
+    //         }
+    //     }
+    //     if (i->getName() == "C")
+    //     {
+    //         // cout << "yes";
+    //         auto table = i->getTable().tbl;
+
+    //         for (auto j : table)
+    //         {
+    //             if (j.nexthop == "10.0.1.23")
+    //             {
+    //                 cout << "yes2";
+    //                 j.cost = 16;
+    //             }
+    //             //     cout << j.first << " " << j.second << endl;
+    //         }
+    //     }
+    //     // if(i->getName() == 'B'){
+    //     //     vector<pair<NetInterface, Node *>> interfaces = i->getInterface();
+    //     //     for(auto j: interfaces)
+    //     //     {
+    //     //         if(j.second->getName() == 'C'){
+    //     //             j.first.
+    //     //         }
+    //     //     }
+    //     // }
+    // }
+    for (int i = 0; i < distanceVectorNodes.size(); i++)
+    {
+        distanceVectorNodes[i]->printTable();
+    }
+    routingAlgo2(distanceVectorNodes);
+    for (int i = 0; i < distanceVectorNodes.size(); i++)
+    {
+        distanceVectorNodes[i]->printTable();
+    }
 }

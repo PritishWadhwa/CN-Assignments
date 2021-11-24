@@ -79,11 +79,12 @@ public:
 */
 class NetInterface
 {
-private:
+    // private:
+public:
     string ip;
     string connectedTo; //this node is connected to this ip
 
-public:
+    // public:
     string getip()
     {
         return this->ip;
@@ -111,11 +112,12 @@ public:
 */
 class Node
 {
-private:
+    // private:
+public:
     string name;
     vector<pair<NetInterface, Node *>> interfaces;
 
-protected:
+    // protected:
     struct routingtbl mytbl;
     virtual void recvMsg(RouteMsg *msg)
     {
@@ -135,7 +137,7 @@ protected:
         return false;
     }
 
-public:
+    // public:
     void setName(string name)
     {
         this->name = name;
@@ -159,6 +161,11 @@ public:
         mytbl.tbl.push_back(entry);
     }
 
+    vector<pair<NetInterface, Node *>> getInterface()
+    {
+        return this->interfaces;
+    }
+
     string getName()
     {
         return this->name;
@@ -180,6 +187,38 @@ public:
         }
     }
 
+    void updateBC()
+    {
+        if (this->getName() == "B")
+        {
+            for (int i = 0; i < mytbl.tbl.size(); ++i)
+            {
+                if (mytbl.tbl[i].dstip == "10.0.1.3" && mytbl.tbl[i].nexthop == "10.0.1.3")
+                {
+                    mytbl.tbl[i].cost = 16;
+                }
+                if (mytbl.tbl[i].dstip == "10.0.0.21" && mytbl.tbl[i].nexthop == "10.0.1.3")
+                {
+                    mytbl.tbl[i].cost = 16;
+                }
+            }
+        }
+        if (this->getName() == "C")
+        {
+            for (int i = 0; i < mytbl.tbl.size(); ++i)
+            {
+                if (mytbl.tbl[i].dstip == "10.0.1.23" && mytbl.tbl[i].nexthop == "10.0.1.23")
+                {
+                    mytbl.tbl[i].cost = 16;
+                }
+                if (mytbl.tbl[i].dstip == "10.0.0.21" && mytbl.tbl[i].nexthop == "10.0.1.23")
+                {
+                    mytbl.tbl[i].cost = 16;
+                }
+            }
+        }
+    }
+
     void sendMsg()
     {
         struct routingtbl ntbl;
@@ -197,6 +236,19 @@ public:
             interfaces[i].second->recvMsg(&msg);
         }
     }
+
+    // void updateTblEntry(string node1, string node2, int cost)
+    // {
+    //     for (int i = 0; i < mytbl.tbl.size(); ++i)
+    //     {
+    //         if (m == node1)
+    //         {
+    //             mytbl.tbl[i].nexthop = node2;
+    //             mytbl.tbl[i].cost = cost;
+    //             break;
+    //         }
+    //     }
+    // }
 };
 
 class RoutingNode : public Node
