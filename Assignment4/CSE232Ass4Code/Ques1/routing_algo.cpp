@@ -15,7 +15,49 @@ void printRT(vector<RoutingNode *> nd)
 void routingAlgo(vector<RoutingNode *> nd)
 {
     //Your code here
+    bool tablesChanged = false;
+    do
+    {
+        vector<struct routingtbl> routingTable;
+        tablesChanged = false;
+        // The following loop is to get the routing table of each node and send own routing table with others as it has not converged yet
+        for (auto i : nd)
+        {
+            routingTable.push_back(i->getTable());
+            i->sendMsg();
+        }
+        // The following loop is to check if the routing table has converged or not
+        for (int i = 0; i < routingTable.size(); i++)
+        {
+            if (routingTable[i].tbl.size() != nd[i]->getTable().tbl.size())
+            {
+                tablesChanged = true;
+                break;
+            }
+            for (int j = 0; j < nd[i]->getTable().tbl.size(); j++)
+            {
+                if (routingTable[i].tbl[j].nexthop != nd[i]->getTable().tbl[j].nexthop)
+                {
+                    tablesChanged = true;
+                    break;
+                }
+                else
+                {
+                    if (routingTable[i].tbl[j].ip_interface != nd[i]->getTable().tbl[j].ip_interface)
+                    {
+                        tablesChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+    } while (tablesChanged);
+    /*Print routing table entries after routing algo converges */
+    printRT(nd);
+}
 
+void routingAlgo2(vector<RoutingNode *> nd)
+{
     // Code to implement the routing algorithm
     int num = nd.size();
     bool nc = false;
@@ -61,12 +103,17 @@ void routingAlgo(vector<RoutingNode *> nd)
         }
         if (nc)
             break;
+        printRT(nd);
+        cout << "\n";
     }
-    /*Print routing table entries after routing algo converges */
     printRT(nd);
 }
 
 void RoutingNode::recvMsg(RouteMsg *msg)
+{
+}
+
+void RoutingNode::recvMsg1(RouteMsg *msg)
 {
     //your code here
     // Function to recieve incoming routing table for each node in distance vector algorithm

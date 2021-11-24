@@ -3,6 +3,7 @@
 vector<RoutingNode *> distanceVectorNodes;
 
 void routingAlgo(vector<RoutingNode *> distanceVectorNodes);
+void routingAlgo2(vector<RoutingNode *> distanceVectorNodes);
 
 int main()
 {
@@ -61,6 +62,6 @@ int main()
     }
 
     /* The logic of the routing algorithm should go here */
-    routingAlgo(distanceVectorNodes);
+    routingAlgo2(distanceVectorNodes);
     /* Add the logic for periodic update (after every 1 sec) here */
 }
