@@ -79,12 +79,11 @@ public:
 */
 class NetInterface
 {
-    // private:
-public:
+private:
     string ip;
     string connectedTo; //this node is connected to this ip
 
-    // public:
+public:
     string getip()
     {
         return this->ip;
@@ -112,18 +111,25 @@ public:
 */
 class Node
 {
-    // private:
-public:
+private:
     string name;
     vector<pair<NetInterface, Node *>> interfaces;
 
-    // protected:
+protected:
     struct routingtbl mytbl;
     virtual void recvMsg(RouteMsg *msg)
     {
         cout << "Base" << endl;
     }
     virtual void recvMsg1(RouteMsg *msg)
+    {
+        cout << "Base" << endl;
+    }
+    virtual void recvMsg2(RouteMsg *msg)
+    {
+        cout << "Base" << endl;
+    }
+    virtual void recvMsg3(RouteMsg *msg)
     {
         cout << "Base" << endl;
     }
@@ -137,7 +143,7 @@ public:
         return false;
     }
 
-    // public:
+public:
     void setName(string name)
     {
         this->name = name;
@@ -159,11 +165,6 @@ public:
         entry.ip_interface = myip;
         entry.cost = cost;
         mytbl.tbl.push_back(entry);
-    }
-
-    vector<pair<NetInterface, Node *>> getInterface()
-    {
-        return this->interfaces;
     }
 
     string getName()
@@ -233,22 +234,9 @@ public:
             msg.from = interfaces[i].first.getip();
             msg.mytbl = &ntbl;
             msg.recvip = interfaces[i].first.getConnectedIp();
-            interfaces[i].second->recvMsg1(&msg);
+            interfaces[i].second->recvMsg(&msg);
         }
     }
-
-    // void updateTblEntry(string node1, string node2, int cost)
-    // {
-    //     for (int i = 0; i < mytbl.tbl.size(); ++i)
-    //     {
-    //         if (m == node1)
-    //         {
-    //             mytbl.tbl[i].nexthop = node2;
-    //             mytbl.tbl[i].cost = cost;
-    //             break;
-    //         }
-    //     }
-    // }
 };
 
 class RoutingNode : public Node
@@ -256,4 +244,6 @@ class RoutingNode : public Node
 public:
     void recvMsg(RouteMsg *msg);
     void recvMsg1(RouteMsg *msg);
+    void recvMsg2(RouteMsg *msg);
+    void recvMsg3(RouteMsg *msg);
 };

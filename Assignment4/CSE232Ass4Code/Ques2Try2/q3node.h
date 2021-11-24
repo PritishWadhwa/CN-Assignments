@@ -18,6 +18,7 @@ public:
     string dstip, nexthop;
     string ip_interface;
     int cost;
+    int share_cost;
     /* You will have to add a new variable say, share_cost. 
   'share_cost' holds the cost that has to be shared with the neighbor.
   This change will be required to complete Q.3. of the assignment. */
@@ -79,12 +80,11 @@ public:
 */
 class NetInterface
 {
-    // private:
-public:
+private:
     string ip;
     string connectedTo; //this node is connected to this ip
 
-    // public:
+public:
     string getip()
     {
         return this->ip;
@@ -112,12 +112,11 @@ public:
 */
 class Node
 {
-    // private:
-public:
+private:
     string name;
     vector<pair<NetInterface, Node *>> interfaces;
 
-    // protected:
+protected:
     struct routingtbl mytbl;
     virtual void recvMsg(RouteMsg *msg)
     {
@@ -137,7 +136,7 @@ public:
         return false;
     }
 
-    // public:
+public:
     void setName(string name)
     {
         this->name = name;
@@ -159,11 +158,6 @@ public:
         entry.ip_interface = myip;
         entry.cost = cost;
         mytbl.tbl.push_back(entry);
-    }
-
-    vector<pair<NetInterface, Node *>> getInterface()
-    {
-        return this->interfaces;
     }
 
     string getName()
@@ -222,9 +216,23 @@ public:
     void sendMsg()
     {
         struct routingtbl ntbl;
+
         for (int i = 0; i < mytbl.tbl.size(); ++i)
         {
-            ntbl.tbl.push_back(mytbl.tbl[i]);
+            // change 1
+            for (auto j : this->interfaces)
+            {
+                // interfaces[j] -> j
+                // if (interfaces[j].first.getConnectedIp() == mytbl.tbl[i].nexthop) //if the next hop is that of the neighbour, that is the current cost is dependet on the neighbours cost, then the sharing value is 16
+                //     mytbl.tbl[i].share_cost = 16;
+                if (j.first.getConnectedIp() == mytbl.tbl[i].nexthop) //if the next hop is that of the neighbour, that is the current cost is dependet on the neighbours cost, then the sharing value is 16
+                    mytbl.tbl[i].share_cost = 16;
+                else
+                {
+                    mytbl.tbl[i].share_cost = mytbl.tbl[i].cost;
+                }
+                ntbl.tbl.push_back(mytbl.tbl[i]);
+            }
         }
 
         for (int i = 0; i < interfaces.size(); ++i)
@@ -233,22 +241,9 @@ public:
             msg.from = interfaces[i].first.getip();
             msg.mytbl = &ntbl;
             msg.recvip = interfaces[i].first.getConnectedIp();
-            interfaces[i].second->recvMsg1(&msg);
+            interfaces[i].second->recvMsg(&msg);
         }
     }
-
-    // void updateTblEntry(string node1, string node2, int cost)
-    // {
-    //     for (int i = 0; i < mytbl.tbl.size(); ++i)
-    //     {
-    //         if (m == node1)
-    //         {
-    //             mytbl.tbl[i].nexthop = node2;
-    //             mytbl.tbl[i].cost = cost;
-    //             break;
-    //         }
-    //     }
-    // }
 };
 
 class RoutingNode : public Node
@@ -256,4 +251,5 @@ class RoutingNode : public Node
 public:
     void recvMsg(RouteMsg *msg);
     void recvMsg1(RouteMsg *msg);
+    void recvMsg2(RouteMsg *msg);
 };

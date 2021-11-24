@@ -3,6 +3,8 @@
 
 using namespace std;
 
+int phase = 0;
+
 void printRT(vector<RoutingNode *> nd)
 {
     /*Print routing table entries*/
@@ -51,12 +53,9 @@ void routingAlgo(vector<RoutingNode *> nd)
                 }
             }
         }
-        printRT(nd);
-        cout << endl;
     } while (tablesChanged);
     /*Print routing table entries after routing algo converges */
-    cout << "Routing table converged" << endl;
-    // printRT(nd);
+    printRT(nd);
 }
 
 void routingAlgo2(vector<RoutingNode *> nd)
@@ -106,46 +105,95 @@ void routingAlgo2(vector<RoutingNode *> nd)
         }
         if (nc)
             break;
-        // printRT(nd);
-        // cout << "\n";
+        printRT(nd);
+        cout << "\n";
     }
     printRT(nd);
+    phase = 1;
 }
+
+// void RoutingNode::recvMsg(RouteMsg *msg)
+// {
+//     int lim = msg->mytbl->tbl.size();
+//     int lim2 = mytbl.tbl.size();
+//     for (int i = 0; i < lim; i++)
+//     {
+//         // cout << msg->mytbl->tbl.size() << "hi" << endl;
+//         RoutingEntry currEntry = msg->mytbl->tbl[i];
+//         currEntry.nexthop = msg->from;
+//         currEntry.ip_interface = msg->recvip;
+//         currEntry.cost += 1;
+//         bool alreadyPresent = false;
+//         for (int j = 0; j < lim2; j++)
+//         {
+//             if (msg->mytbl->tbl[i].dstip == mytbl.tbl[j].dstip)
+//             {
+//                 alreadyPresent = true;
+//                 if (msg->mytbl->tbl[i].cost + 1 < mytbl.tbl[j].cost)
+//                 {
+//                     if (!isMyInterface(msg->mytbl->tbl[i].nexthop))
+//                     {
+//                         mytbl.tbl[j].nexthop = msg->from;
+//                         mytbl.tbl[j].cost = msg->mytbl->tbl[j].cost + 1;
+//                         mytbl.tbl[j].ip_interface = msg->recvip;
+//                     }
+//                     break;
+//                 }
+//             }
+//         }
+//         if (!alreadyPresent)
+//         {
+//             mytbl.tbl.push_back(currEntry);
+//             // break;
+//         }
+//     }
+// }
 
 void RoutingNode::recvMsg(RouteMsg *msg)
 {
-    int lim = msg->mytbl->tbl.size();
-    int lim2 = mytbl.tbl.size();
-    for (int i = 0; i < lim; i++)
+    //your code here
+
+    int cnt = msg->mytbl->tbl.size();
+    int index = 0;
+    while (index < cnt)
     {
-        // cout << msg->mytbl->tbl.size() << "hi" << endl;
-        RoutingEntry currEntry = msg->mytbl->tbl[i];
-        currEntry.nexthop = msg->from;
-        currEntry.ip_interface = msg->recvip;
-        currEntry.cost += 1;
-        bool alreadyPresent = false;
-        for (int j = 0; j < lim2; j++)
+        int j = 0;
+        bool found = false;
+        for (j = 0; j < mytbl.tbl.size(); j++)
         {
-            if (msg->mytbl->tbl[i].dstip == mytbl.tbl[j].dstip)
+            if (msg->mytbl->tbl[index].dstip == mytbl.tbl[j].dstip)
             {
-                alreadyPresent = true;
-                if (msg->mytbl->tbl[i].cost + 1 < mytbl.tbl[j].cost)
-                {
-                    if (!isMyInterface(msg->mytbl->tbl[i].nexthop))
-                    {
-                        mytbl.tbl[j].nexthop = msg->from;
-                        mytbl.tbl[j].cost = msg->mytbl->tbl[j].cost + 1;
-                        mytbl.tbl[j].ip_interface = msg->recvip;
-                    }
-                    break;
-                }
+                found = true;
+                break;
             }
         }
-        if (!alreadyPresent)
+
+        if (found)
         {
-            mytbl.tbl.push_back(currEntry);
-            // break;
+            if (phase == 0)
+                mytbl.tbl[j].cost = min(mytbl.tbl[j].cost, msg->mytbl->tbl[index].share_cost + 1);
+            else if ((msg->from.compare("10.0.1.23") == 0 || msg->from.compare("10.0.1.3") == 0)) //if message is being received though a broken link, then it is discared, here B to C is broken
+                return;
+            else if (!isMyInterface(mytbl.tbl[j].dstip)) //update cost if the the destination is not me[node presently]
+            {
+                mytbl.tbl[j].cost = min(16, msg->mytbl->tbl[index].share_cost + 1); //setting the maximimum cost limit to 16, that is infinity
+                if (mytbl.tbl[j].cost < 16)                                         //if cost has been updated then the next hop for the link o be updated too
+                    mytbl.tbl[j].nexthop = msg->mytbl->tbl[index].ip_interface;
+            }
         }
+        else
+        {
+            RoutingEntry n;
+            n.ip_interface = msg->recvip;
+            n.nexthop = msg->from;
+            n.dstip = msg->mytbl->tbl[index].dstip;
+            if (msg->from == n.dstip)
+                n.cost = 1;
+            else
+                n.cost = msg->mytbl->tbl[index].cost + 1;
+            mytbl.tbl.push_back(n);
+        }
+        index += 1;
     }
 }
 
@@ -193,6 +241,61 @@ void RoutingNode::recvMsg1(RouteMsg *msg)
                 }
             }
         }
+
+        if (efound) // removes extra entry if required
+        {
+            mytbl.tbl.pop_back();
+        }
+
+        j++;
+    }
+}
+
+void RoutingNode::recvMsg2(RouteMsg *msg)
+{
+    //your code here
+    // Function to recieve incoming routing table for each node in distance vector algorithm
+    int n = mytbl.tbl.size();
+    int k = msg->mytbl->tbl.size();
+    bool efound = false;
+    int i = 0, j = 0;
+    while (j < k)
+    {
+        mytbl.tbl.push_back(msg->mytbl->tbl[j]);
+        mytbl.tbl[mytbl.tbl.size() - 1].cost++;
+        mytbl.tbl[mytbl.tbl.size() - 1].nexthop = msg->from;
+        mytbl.tbl[mytbl.tbl.size() - 1].ip_interface = msg->recvip;
+        efound = false; //if entry for this ip is already found then it is true
+        for (i = 0; i < n; i++)
+        {
+            if (((msg->mytbl->tbl[j]).dstip) == (mytbl.tbl[i].dstip))
+            {
+                efound = true;
+                if ((msg->mytbl->tbl[j].cost + 1) < mytbl.tbl[i].cost) //if a lower cost path is available it will be updated
+                {
+                    if (isMyInterface(msg->mytbl->tbl[j].nexthop)) //if the path is through me i will not consider it
+                    {
+                        break;
+                    }
+                    else if ((msg->from.compare("10.0.1.23") == 0 || msg->from.compare("10.0.1.3") == 0)) //if message is being received though a broken link, then it is discared, here B to C is broken
+                        return;
+                    else if (!isMyInterface(mytbl.tbl[j].dstip)) //update cost if the the destination is not me[node presently]
+                    {
+                        mytbl.tbl[j].cost = min(16, msg->mytbl->tbl[i].cost + 1); //setting the maximimum cost limit to 16, that is infinity
+                        if (mytbl.tbl[j].cost < 16)                               //if cost has been updated then the next hop for the link o be updated too
+                            mytbl.tbl[j].nexthop = msg->mytbl->tbl[i].ip_interface;
+                    }
+                    else
+                    {
+                        mytbl.tbl[i].nexthop = msg->from;
+                        mytbl.tbl[i].ip_interface = msg->recvip;
+                        mytbl.tbl[i].cost = msg->mytbl->tbl[j].cost + 1;
+                        break;
+                    }
+                }
+            }
+        }
+
         if (efound) // removes extra entry if required
         {
             mytbl.tbl.pop_back();

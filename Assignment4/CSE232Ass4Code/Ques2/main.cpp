@@ -62,7 +62,7 @@ int main()
     }
 
     /* The logic of the routing algorithm should go here */
-    routingAlgo(distanceVectorNodes);
+    routingAlgo2(distanceVectorNodes);
     /* Add the logic for periodic update (after every 1 sec) here */
     cout << "\n\n\n\n\n\n\n\n\n\n\n";
     for (int i = 0; i < distanceVectorNodes.size(); i++)
@@ -144,13 +144,14 @@ int main()
     //     //     }
     //     // }
     // }
-    for (int i = 0; i < distanceVectorNodes.size(); i++)
-    {
-        distanceVectorNodes[i]->printTable();
-    }
+    // for (int i = 0; i < distanceVectorNodes.size(); i++)
+    // {
+    //     distanceVectorNodes[i]->printTable();
+    // }
+    // return 0;
     routingAlgo2(distanceVectorNodes);
-    for (int i = 0; i < distanceVectorNodes.size(); i++)
-    {
-        distanceVectorNodes[i]->printTable();
-    }
+    // for (int i = 0; i < distanceVectorNodes.size(); i++)
+    // {
+    //     distanceVectorNodes[i]->printTable();
+    // }
 }
