@@ -111,6 +111,39 @@ void routingAlgo2(vector<RoutingNode *> nd)
 
 void RoutingNode::recvMsg(RouteMsg *msg)
 {
+    int lim = msg->mytbl->tbl.size();
+    int lim2 = mytbl.tbl.size();
+    for (int i = 0; i < lim; i++)
+    {
+        // cout << msg->mytbl->tbl.size() << "hi" << endl;
+        RoutingEntry currEntry = msg->mytbl->tbl[i];
+        currEntry.nexthop = msg->from;
+        currEntry.ip_interface = msg->recvip;
+        currEntry.cost += 1;
+        bool alreadyPresent = false;
+        for (int j = 0; j < lim2; j++)
+        {
+            if (msg->mytbl->tbl[i].dstip == mytbl.tbl[j].dstip)
+            {
+                alreadyPresent = true;
+                if (msg->mytbl->tbl[i].cost + 1 < mytbl.tbl[j].cost)
+                {
+                    if (!isMyInterface(msg->mytbl->tbl[i].nexthop))
+                    {
+                        mytbl.tbl[j].nexthop = msg->from;
+                        mytbl.tbl[j].cost = msg->mytbl->tbl[j].cost + 1;
+                        mytbl.tbl[j].ip_interface = msg->recvip;
+                    }
+                    break;
+                }
+            }
+        }
+        if (!alreadyPresent)
+        {
+            mytbl.tbl.push_back(currEntry);
+            // break;
+        }
+    }
 }
 
 void RoutingNode::recvMsg1(RouteMsg *msg)

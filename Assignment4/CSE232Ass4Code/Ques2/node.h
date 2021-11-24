@@ -121,6 +121,10 @@ protected:
     {
         cout << "Base" << endl;
     }
+    virtual void recvMsg1(RouteMsg *msg)
+    {
+        cout << "Base" << endl;
+    }
     bool isMyInterface(string eth)
     {
         for (int i = 0; i < interfaces.size(); ++i)
@@ -199,4 +203,5 @@ class RoutingNode : public Node
 {
 public:
     void recvMsg(RouteMsg *msg);
+    void recvMsg1(RouteMsg *msg);
 };

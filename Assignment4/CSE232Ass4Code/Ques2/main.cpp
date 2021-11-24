@@ -62,6 +62,6 @@ int main()
     }
 
     /* The logic of the routing algorithm should go here */
-    routingAlgo2(distanceVectorNodes);
+    routingAlgo(distanceVectorNodes);
     /* Add the logic for periodic update (after every 1 sec) here */
 }
