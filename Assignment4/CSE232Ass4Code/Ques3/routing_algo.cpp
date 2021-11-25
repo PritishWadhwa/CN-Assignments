@@ -150,7 +150,7 @@ void RoutingNode::recvMsg(RouteMsg *msg)
                 alreadyPresent = true;
                 if (q1)
                 {
-                    mytbl.tbl[j].cost = min(mytbl.tbl[j].cost, msg->mytbl->tbl[i].cost + 1);
+                    mytbl.tbl[j].cost = min(mytbl.tbl[j].cost, msg->mytbl->tbl[i].share_cost + 1);
                 }
                 else
                 {
@@ -160,9 +160,9 @@ void RoutingNode::recvMsg(RouteMsg *msg)
                     }
                     else if (isMyInterface(mytbl.tbl[j].dstip) == false)
                     {
-                        if (msg->mytbl->tbl[i].cost < 15)
+                        if (msg->mytbl->tbl[i].share_cost < 15)
                         {
-                            mytbl.tbl[j].cost = msg->mytbl->tbl[i].cost + 1;
+                            mytbl.tbl[j].cost = msg->mytbl->tbl[i].share_cost + 1;
                         }
                         else
                         {
