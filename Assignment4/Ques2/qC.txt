@@ -1,0 +1,5 @@
+The problem spotted here is the Count to infinity problem.
+Here the values between a and b are being updated by the count of 1 as they both advertise a cheaper path, to C, each other.
+Due to this the values increment by the factor of 1 only and when it reaches the threshold value(here 16), it gets to know to original cost.
+Since we are considering infinity as 16 here, the values get stuck once they reach infinity(here 16).
+This can be solved by implementing poisoned reverse algorithm. 
